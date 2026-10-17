@@ -1,0 +1,15 @@
+# deps
+node_modules/
+.pnpm-store/
+.npm-cache/
+
+# build output
+out/
+release/
+
+# local mirror config (machine-specific, see README)
+.npmrc
+
+# logs & OS noise
+*.log
+.DS_Store

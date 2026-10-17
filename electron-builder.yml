@@ -1,0 +1,32 @@
+# A5 — packaging config. Verified with: `electron-builder --linux dir` (see README.md).
+# Kept minimal and honest: no signing, no publish targets.
+# AppImage needs extra tooling (appimage-builder/fuse) that this sandbox does not have; the
+# executables are produced as an unpacked directory instead (`--linux dir`).
+appId: dev.firefly.studio
+productName: Firefly Studio
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  # typescript resolves its default libs from node_modules/typescript/lib/*.d.ts. electron-builder
+  # appends its default ignore list after these patterns, and that list ends with
+  # `!**/*.{...,d.ts,...}` (app-builder-lib/out/fileMatcher.js), so typescript ships with zero lib
+  # files: TS falls back to an empty default lib, identifiers inside inferred object literals degrade
+  # to `unknown`, and the wizard then reports editable fields as readOnly (profileConfig.links).
+  # A dedicated file set re-adds those .d.ts files inside the asar (verified: 0 -> 102).
+  - from: node_modules/typescript/lib
+    to: node_modules/typescript/lib
+    filter:
+      - '**/*'
+win:
+  target: nsis
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+linux:
+  target:
+    - dir
+    - AppImage
+  category: Development
