@@ -2,6 +2,9 @@
   "name": "firefly-studio",
   "version": "0.1.0",
   "private": true,
+  "description": "Graphical editor for Firefly (Astro) blog configuration and posts",
+  "author": "KirisameNyan",
+  "desktopName": "firefly-studio.desktop",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {

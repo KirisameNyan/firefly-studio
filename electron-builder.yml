@@ -29,4 +29,21 @@ linux:
   target:
     - dir
     - AppImage
+  # AppArmor-free desktop integration:
+  # - icon: build/icons/{512,256,128,64,48,32}x*.png (electron-builder scales from these)
+  # - executableName keeps the binary name stable -> WM_CLASS / app_id == firefly-studio
+  # - syncDesktopName makes Electron report that same app_id, so the running window is
+  #   associated with firefly-studio.desktop instead of being an orphan icon in the dock
+  icon: build/icons
+  executableName: firefly-studio
+  syncDesktopName: true
+  # single main category -> no "might appear twice in menu" hint from desktop-file-validate
   category: Development
+  desktop:
+    entry:
+      Name: Firefly Studio
+      GenericName: Blog Configuration Editor
+      Comment: Graphical editor for Firefly (Astro) blog configuration and posts
+      Keywords: firefly;astro;blog;config;editor;markdown;frontmatter;
+      StartupWMClass: firefly-studio
+      Terminal: 'false'
