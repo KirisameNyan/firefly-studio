@@ -148,6 +148,60 @@ pnpm build
 - **MDX 预览是纯 Markdown 渲染**（import/JSX 会被当文本显示）。
 - `project:pick` 的原生对话框未在无头环境手点过（用 `STUDIO_NO_DIALOG=1` 走取消分支）。
 - **打包**：`electron-builder --linux dir` 已验证产出 `release/linux-unpacked/`，且打包态向导已实测可用；
-  **AppImage 未构建**（本机磁盘 100% 满，且未装 appimagetool / mksquashfs）；Windows/macOS 未验证。
+  **AppImage 已构建并验证**（electron-builder 自带 appimage 工具链，无需系统装 appimagetool/mksquashfs）；
+  Release 见 https://github.com/KirisameNyan/firefly-studio/releases 。Windows/macOS 未验证。
 - 组件级 UI 测试缺失（仓库未装 jsdom/testing-library），交互靠真实 Electron 导览 + 截图 + 逐步骤 DOM JSON 验证。
 - 一个既有小瑕疵：`navigation-utils` 的 18 值枚举（`banner.position`）因类型里带 `| string` 而被判只读。
+
+## 桌面集成（Linux）
+
+AppImage 自带 `.desktop` 与图标，但"装到系统菜单"是另一件事。本机已按用户级安装：
+
+| 位置 | 内容 |
+| --- | --- |
+| `~/.local/bin/firefly-studio.AppImage` | 可执行文件（稳定路径，供 .desktop 引用） |
+| `~/.local/share/icons/hicolor/{32,48,64,128,256,512}x*/apps/firefly-studio.png` | 6 个尺寸图标 |
+| `~/.local/share/applications/firefly-studio.desktop` | 菜单项 |
+
+图标来自 Firefly 自带 logo（原图仅 **192×192**，直接放大到 512 会糊），所以做成
+**1024 圆角琥珀底板 + 居中剪影** 再派生各尺寸，视觉上更像应用图标、也掩盖了放大噪点。
+
+关键一处是 **window association**：Electron 默认的 app_id 与 .desktop 文件名对不上，导致任务栏/dock
+里出现"孤儿图标"。解法是 `electron-builder.yml` 里同时给：
+
+```yaml
+linux:
+  executableName: firefly-studio
+  syncDesktopName: true      # 让 Electron 上报的 app_id 等于 desktop 文件名
+  icon: build/icons
+  desktop:
+    entry:
+      StartupWMClass: firefly-studio
+```
+
+配合 `package.json` 的 `"desktopName": "firefly-studio.desktop"`。
+
+**验证方式（都实跑过）**：
+
+```bash
+# 1) 包内条目合法
+<appimage> --appimage-extract >/dev/null && cp squashfs-root/*.desktop /tmp/c.desktop
+desktop-file-validate /tmp/c.desktop          # 无输出 = 干净
+
+# 2) 从菜单入口真能拉起（进程名应等于 app_id）
+gtk-launch firefly-studio && sleep 12
+ps -eo pid=,comm= | grep firefly-studio       # comm 必须是 firefly-studio
+```
+
+重装到用户目录：
+
+```bash
+install -m755 "release/Firefly Studio-0.1.0.AppImage" ~/.local/bin/firefly-studio.AppImage
+for d in build/icons/*.png; do s=$(basename "$d" .png); \
+  mkdir -p ~/.local/share/icons/hicolor/$s/apps; \
+  install -m644 "$d" ~/.local/share/icons/hicolor/$s/apps/firefly-studio.png; done
+update-desktop-database ~/.local/share/applications
+```
+
+> 注：AppImage 内嵌条目的 `Exec` 是 `AppRun --no-sandbox %U`（electron-builder 的默认，规避
+> AppImage 无 setuid sandbox 的限制）。用户级那份 `Exec` 直接指向 AppImage 路径。
