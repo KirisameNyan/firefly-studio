@@ -29,6 +29,9 @@ html,
 body,
 #root {
   height: 100%;
+  /* The app owns all scrolling: the document itself must never scroll or rubber-band. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -46,6 +49,8 @@ pre {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -256,6 +261,37 @@ pre {
   flex-direction: column;
   gap: 6px;
   padding: 8px 18px 0;
+  /* Banner pile-ups must never squeeze the work area: cap the strip and scroll inside it. */
+  flex: 0 0 auto;
+  max-height: 30vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  position: relative;
+}
+
+.banner-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.notice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notice-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  max-height: 120px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 11.5px;
 }
 
 .notice {
@@ -313,17 +349,28 @@ pre {
 /* main + panels */
 
 .main {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   padding: 12px 18px;
   overflow: hidden;
+  /* Absolutely positioned descendants (.sr-only legends) must not escape the clip and inflate the
+     document scroll area — a positioned scroll container keeps them inside. */
+  position: relative;
+}
+
+.topbar,
+.verify-output,
+.save-bar {
+  flex: 0 0 auto;
 }
 
 .panel {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elev);
@@ -459,17 +506,20 @@ pre {
 /* module nav */
 
 .config-layout {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 292px 1fr;
+  grid-template-columns: 292px minmax(0, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
   gap: 12px;
+  overflow: hidden;
 }
 
 .module-nav {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elev);
@@ -497,7 +547,11 @@ pre {
 }
 
 .nav-groups {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  position: relative;
   padding: 8px 8px 14px;
 }
 
@@ -1063,20 +1117,24 @@ textarea.control {
 /* posts */
 
 .posts-panel {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 372px 1fr;
+  grid-template-columns: 372px minmax(0, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
   gap: 12px;
+  overflow: hidden;
 }
 
 .post-list-pane,
 .post-editor-pane {
   min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-elev);
-  overflow: auto;
   padding: 12px;
 }
 

@@ -13,3 +13,6 @@ release/
 # logs & OS noise
 *.log
 .DS_Store
+
+# local evidence dumps
+.studio-evidence/

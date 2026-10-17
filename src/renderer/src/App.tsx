@@ -59,6 +59,10 @@ export default function App() {
   const [verify, setVerify] = useState<VerifyResult | null>(null)
   const [verifyBusy, setVerifyBusy] = useState(false)
   const [tourActive, setTourActive] = useState(false)
+  /** Signature of the dismissed banner set; new banners (different text) re-appear. */
+  const [dismissedNotices, setDismissedNotices] = useState('')
+  const [allNoticesShown, setAllNoticesShown] = useState(false)
+  const [warningsOpen, setWarningsOpen] = useState(false)
 
   const sourceRef = useRef<DataSource | null>(null)
   const lastRootRef = useRef<string>('')
@@ -365,7 +369,33 @@ export default function App() {
     )
   }
 
-  const notes = [...(source?.notes ?? []), ...(source?.warnings ?? []), ...(bootError ? [bootError] : [])]
+  // Banner budget: the tour banner and the engine-warning summary always get a slot, everything
+  // else is deduplicated and capped so a pathological backend cannot squeeze the work area.
+  const MAX_NOTICES = 4
+  const warningList = source?.warnings ?? []
+  const noticeCandidates: Array<{ id: string; kind: 'error' | 'warn' | 'info'; text: string }> = []
+  if (bootError) noticeCandidates.push({ id: 'boot-error', kind: 'error', text: bootError })
+  if (banner) noticeCandidates.push({ id: 'banner', kind: 'warn', text: banner })
+  ;(source?.notes ?? []).forEach((note, index) => noticeCandidates.push({ id: 'note-' + index, kind: 'info', text: note }))
+  const seenNotices = new Set<string>()
+  const noticeItems = noticeCandidates
+    .filter((item) => {
+      const key = item.text.replace(/\s+/g, ' ').trim()
+      if (!key || seenNotices.has(key)) return false
+      seenNotices.add(key)
+      return true
+    })
+    .sort((left, right) => (left.kind === 'error' ? -1 : right.kind === 'error' ? 1 : 0))
+  const noticeSignature = noticeItems.map((item) => item.id + ':' + item.text).join('|') + '#w' + warningList.length
+  const noticesDismissed = dismissedNotices !== '' && dismissedNotices === noticeSignature
+  const noticeBudget = Math.max(0, MAX_NOTICES - (tourActive ? 1 : 0) - (warningList.length > 0 ? 1 : 0))
+  const visibleNotices = noticesDismissed
+    ? []
+    : allNoticesShown
+      ? noticeItems
+      : noticeItems.slice(0, noticeBudget)
+  const hiddenNoticeCount = noticesDismissed ? 0 : Math.max(0, noticeItems.length - visibleNotices.length)
+  const showBannerStrip = !noticesDismissed && (tourActive || warningList.length > 0 || visibleNotices.length > 0)
 
   return (
     <div className="app" data-view={view} data-origin={source?.origin ?? 'none'}>
@@ -432,8 +462,8 @@ export default function App() {
         </div>
       </header>
 
-      {(notes.length > 0 || banner || tourActive) && (
-        <div className="banners" data-testid="banners">
+      {(showBannerStrip || noticesDismissed) && (
+        <div className="banners" data-testid="banners" data-notice-count={visibleNotices.length}>
           {tourActive && (
             <div className="notice notice-warn tour-banner" data-testid="tour-banner">
               首次运行导览进行中：正在依次演示 配置表单 → 保存前 diff → 文章 → 首次向导。
@@ -449,18 +479,72 @@ export default function App() {
               </button>
             </div>
           )}
-          {banner && <div className="notice notice-warn">{banner}</div>}
-          {source?.origin === 'demo' && (
-            <div className="notice notice-warn" data-testid="demo-notice">
-              <strong>演示数据</strong>：后端仍为 A3 桩实现（project:check 的 problems 含 "stub:"）。
-              配置表单、文章与向导都可用；写入类操作会返回 ok:false，界面会原样显示 WriteError。
-            </div>
-          )}
-          {notes.map((note, index) => (
-            <div className="notice" key={index}>
-              {note}
+          {visibleNotices.map((item) => (
+            <div
+              className={
+                'notice' + (item.kind === 'error' ? ' notice-error' : item.kind === 'warn' ? ' notice-warn' : '')
+              }
+              key={item.id}
+              data-notice-kind={item.kind}
+            >
+              {item.text}
             </div>
           ))}
+          {!noticesDismissed && warningList.length > 0 && (
+            <div className="notice notice-warn" data-testid="warnings-summary">
+              <div className="notice-row">
+                <span>
+                  引擎警告 <strong>{warningList.length}</strong> 条：core 无法安全编辑 / 判定只读的字段（不影响其它字段编辑）
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  data-testid="warnings-toggle"
+                  onClick={() => setWarningsOpen((open) => !open)}
+                >
+                  {warningsOpen ? '收起' : '展开'}
+                </button>
+              </div>
+              {warningsOpen && (
+                <ul className="notice-list">
+                  {warningList.map((warning, index) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          <div className="banner-controls">
+            {hiddenNoticeCount > 0 && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="show-all-notices"
+                onClick={() => setAllNoticesShown(true)}
+              >
+                还有 {hiddenNoticeCount} 条提示
+              </button>
+            )}
+            {!noticesDismissed ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="clear-notices"
+                onClick={() => setDismissedNotices(noticeSignature)}
+              >
+                清空提示
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                data-testid="restore-notices"
+                onClick={() => setDismissedNotices('')}
+              >
+                显示提示（{noticeItems.length + (warningList.length > 0 ? 1 : 0)}）
+              </button>
+            )}
+          </div>
         </div>
       )}
 
